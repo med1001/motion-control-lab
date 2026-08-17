@@ -8,7 +8,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(motion_control
     src/dc_motor.cpp
     src/differential_drive.cpp
+    src/drivetrain.cpp
     src/pid_controller.cpp
+    src/safety_supervisor.cpp
     src/trapezoidal_profile.cpp
     src/waypoint_follower.cpp
 )
@@ -19,5 +21,8 @@ if(MSVC)
 else()
     target_compile_options(motion_control PRIVATE -Wall -Wextra -Wpedantic -Wconversion)
 endif()
+
+add_executable(motion_simulator apps/motion_simulator.cpp)
+target_link_libraries(motion_simulator PRIVATE motion_control)
 
 include(CTest)
