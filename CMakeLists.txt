@@ -7,7 +7,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(motion_control
     src/dc_motor.cpp
+    src/differential_drive.cpp
     src/pid_controller.cpp
+    src/trapezoidal_profile.cpp
+    src/waypoint_follower.cpp
 )
 target_include_directories(motion_control PUBLIC include)
 
@@ -18,4 +21,3 @@ else()
 endif()
 
 include(CTest)
-
