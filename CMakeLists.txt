@@ -26,3 +26,16 @@ add_executable(motion_simulator apps/motion_simulator.cpp)
 target_link_libraries(motion_simulator PRIVATE motion_control)
 
 include(CTest)
+if(BUILD_TESTING)
+    add_executable(motion_control_tests tests/test_main.cpp)
+    target_link_libraries(motion_control_tests PRIVATE motion_control)
+    add_test(NAME unit_tests COMMAND motion_control_tests)
+    add_test(
+        NAME reference_simulation
+        COMMAND motion_simulator ${CMAKE_CURRENT_BINARY_DIR}/reference_telemetry.csv
+    )
+    add_test(
+        NAME watchdog_fault_injection
+        COMMAND motion_simulator ${CMAKE_CURRENT_BINARY_DIR}/fault_telemetry.csv --inject-timeout
+    )
+endif()
