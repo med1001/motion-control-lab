@@ -57,7 +57,7 @@ ticks close the position-estimation loop. A temporary external load is applied
 to one wheel to exercise disturbance rejection.
 
 More detail is available in [docs/architecture.md](docs/architecture.md). A
-French reference for every configurable value, its unit, constraints, and
+complete reference for every configurable value, its unit, constraints, and
 configuration location is available in [docs/parameters.md](docs/parameters.md).
 
 ## Reference results
