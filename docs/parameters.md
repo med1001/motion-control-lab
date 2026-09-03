@@ -1,32 +1,31 @@
-# Guide des paramètres
+# Parameter configuration guide
 
-Ce document explique où configurer le projet **Motion Control Lab**, à quoi
-correspond chaque paramètre et quelles unités utiliser. Les valeurs du scénario
-de référence sont actuellement définies directement dans
-`apps/motion_simulator.cpp` : il n'existe pas encore de fichier de configuration
-externe.
+This document explains where to configure **Motion Control Lab**, what each
+parameter means, and which units to use. The reference scenario values are
+currently defined directly in `apps/motion_simulator.cpp`; the project does not
+yet use an external configuration file.
 
-## Vue d'ensemble
+## Overview
 
-| Famille | Type ou emplacement | Rôle |
+| Category | Type or location | Purpose |
 |---|---|---|
-| Simulation | constantes dans `apps/motion_simulator.cpp` | Période, durée et résolution des encodeurs |
-| Géométrie | `DifferentialDrive` | Rayon des roues et voie du robot |
-| Moteur | `DcMotorParameters` | Modèle électrique et mécanique |
-| Régulation | `PidConfig` | Asservissement de vitesse des roues |
-| Navigation | `WaypointFollowerConfig` | Suivi des points de passage |
-| Sécurité | `SafetyLimits` | Watchdog, courant et vitesse maximums |
-| Trajectoire 1D | `TrapezoidalProfile` | Limites de vitesse et d'accélération |
-| Scénario | `apps/motion_simulator.cpp` | Pose initiale, waypoints et perturbations |
+| Simulation | Constants in `apps/motion_simulator.cpp` | Sample period, duration, and encoder resolution |
+| Geometry | `DifferentialDrive` | Wheel radius and track width |
+| Motor | `DcMotorParameters` | Electrical and mechanical plant model |
+| Control | `PidConfig` | Wheel-speed feedback control |
+| Navigation | `WaypointFollowerConfig` | Waypoint tracking behavior |
+| Safety | `SafetyLimits` | Watchdog, current, and speed limits |
+| 1D trajectory | `TrapezoidalProfile` | Velocity and acceleration limits |
+| Scenario | `apps/motion_simulator.cpp` | Initial pose, waypoints, and disturbances |
 
-## Où renseigner les paramètres
+## Where to set parameters
 
-Pour modifier uniquement le scénario de référence, renseigner les valeurs dans
-`apps/motion_simulator.cpp`, avant la boucle principale. Il est préférable de ne
-pas modifier les valeurs par défaut des fichiers `include/motion/*.hpp`, car ces
-valeurs s'appliquent à tous les futurs utilisateurs de la bibliothèque.
+To customize only the reference scenario, set values in
+`apps/motion_simulator.cpp` before the main loop. Avoid changing default values
+in `include/motion/*.hpp` unless the library-wide defaults should change for
+every user.
 
-Exemple de configuration explicite :
+Prefer named initializers so each value remains associated with its field:
 
 ```cpp
 const motion::DcMotorParameters motor_parameters{
@@ -64,99 +63,95 @@ motion::SafetySupervisor safety({
 });
 ```
 
-Les initialiseurs nommés rendent l'unité et le rôle de chaque valeur plus
-faciles à vérifier. Si une initialisation positionnelle est utilisée, les
-valeurs doivent respecter exactement l'ordre des champs dans le fichier
-d'en-tête correspondant.
+When positional aggregate initialization is used instead, values must follow
+the exact field order in the corresponding header.
 
-## Paramètres de simulation
+## Simulation parameters
 
-Ces constantes sont définies au début de `apps/motion_simulator.cpp`.
+These constants are defined near the top of `apps/motion_simulator.cpp`.
 
-| Paramètre | Valeur de référence | Unité | Définition et règle |
+| Parameter | Reference value | Unit | Definition and requirement |
 |---|---:|---|---|
-| `kDt` | `0.002` | s | Période de la boucle de commande. `0.002 s` correspond à `500 Hz`. Doit être strictement positive. |
-| `kDuration` | `30.0` | s | Durée totale du scénario. |
-| `kWheelRadius` | `0.08` | m | Rayon effectif d'une roue. Doit être strictement positif. |
-| `kTrackWidth` | `0.42` | m | Distance latérale entre les centres des roues gauche et droite. Doit être strictement positive. |
-| `kEncoderTicksPerRevolution` | `2048.0` | ticks/tr | Nombre de ticks pour un tour de roue. Doit être strictement positif. |
+| `kDt` | `0.002` | s | Control-loop period. `0.002 s` corresponds to `500 Hz`. Must be strictly positive. |
+| `kDuration` | `30.0` | s | Total duration of the scenario. |
+| `kWheelRadius` | `0.08` | m | Effective radius of each wheel. Must be strictly positive. |
+| `kTrackWidth` | `0.42` | m | Lateral distance between the left and right wheel centers. Must be strictly positive. |
+| `kEncoderTicksPerRevolution` | `2048.0` | ticks/rev | Encoder counts for one wheel revolution. Must be strictly positive. |
 
-Le rayon doit correspondre au rayon **effectif** de roulement. Une erreur sur le
-rayon produit directement une erreur d'échelle sur la distance estimée. Une
-erreur sur la voie produit surtout une erreur d'orientation pendant les virages.
+Use the effective rolling radius rather than only the nominal wheel dimension.
+A radius error directly creates a distance scale error. A track-width error
+primarily creates a heading error during turns.
 
-## Paramètres du moteur DC
+## DC motor parameters
 
-Le type `DcMotorParameters` est déclaré dans `include/motion/dc_motor.hpp`. Les
-valeurs utilisées par le simulateur sont créées dans
-`apps/motion_simulator.cpp`.
+`DcMotorParameters` is declared in `include/motion/dc_motor.hpp`. The reference
+simulator constructs its parameter set in `apps/motion_simulator.cpp`.
 
-| Champ | Défaut de la bibliothèque | Référence du simulateur | Unité SI | Définition et contrainte |
+| Field | Library default | Simulator reference | SI unit | Definition and requirement |
 |---|---:|---:|---|---|
-| `resistance` | `1.0` | `0.8` | ohm (Ω) | Résistance de l'induit. Strictement positive. |
-| `inductance` | `0.5` | `0.02` | henry (H) | Inductance de l'induit. Strictement positive. |
-| `torque_constant` | `0.1` | `0.12` | N·m/A | Constante de couple. Strictement positive. |
-| `back_emf_constant` | `0.1` | `0.12` | V·s/rad | Constante de force contre-électromotrice. Strictement positive. |
-| `inertia` | `0.01` | `0.003` | kg·m² | Inertie équivalente ramenée à l'arbre. Strictement positive. |
-| `viscous_friction` | `0.01` | `0.003` | N·m·s/rad | Coefficient de frottement visqueux. Positif ou nul. |
+| `resistance` | `1.0` | `0.8` | ohm (Ω) | Armature resistance. Must be strictly positive. |
+| `inductance` | `0.5` | `0.02` | henry (H) | Armature inductance. Must be strictly positive. |
+| `torque_constant` | `0.1` | `0.12` | N·m/A | Motor torque constant. Must be strictly positive. |
+| `back_emf_constant` | `0.1` | `0.12` | V·s/rad | Back-EMF constant. Must be strictly positive. |
+| `inertia` | `0.01` | `0.003` | kg·m² | Equivalent inertia referred to the modeled shaft. Must be strictly positive. |
+| `viscous_friction` | `0.01` | `0.003` | N·m·s/rad | Viscous-friction coefficient. Must be non-negative. |
 
-Le modèle calcule trois états : courant en ampères, vitesse angulaire en rad/s
-et position angulaire en radians. Les paramètres doivent être ramenés au même
-arbre mécanique que celui utilisé par le rayon de roue. Si un réducteur est
-présent, il faut donc tenir compte de son rapport dans les paramètres
-équivalents ou ajouter explicitement un modèle de transmission.
+The model calculates current in amperes, angular velocity in rad/s, and angular
+position in radians. Parameters must be referred to the same mechanical shaft
+used by the wheel-radius model. When a gearbox is present, either include its
+ratio in the equivalent parameters or add an explicit transmission model.
 
-## Paramètres du PID de vitesse
+## Wheel-speed PID parameters
 
-Le type `PidConfig` est déclaré dans `include/motion/pid_controller.hpp`. Le
-simulateur transmet actuellement la même configuration aux roues gauche et
-droite, mais `SimulatedDrivetrain` accepte deux configurations différentes.
+`PidConfig` is declared in `include/motion/pid_controller.hpp`. The reference
+simulator uses the same configuration for both wheels, although
+`SimulatedDrivetrain` accepts separate left and right configurations.
 
-| Champ | Référence | Unité indicative | Définition et contrainte |
+| Field | Reference value | Indicative unit | Definition and requirement |
 |---|---:|---|---|
-| `kp` | `0.9` | V/(rad/s) | Gain proportionnel. Positif ou nul. |
-| `ki` | `3.5` | V/rad | Gain intégral. Positif ou nul. |
-| `kd` | `0.012` | V·s²/rad | Gain dérivé appliqué à la mesure. Positif ou nul. |
-| `output_min` | `-24.0` | V | Tension minimale autorisée. Doit être inférieure à `output_max`. |
-| `output_max` | `24.0` | V | Tension maximale autorisée. Doit être supérieure à `output_min`. |
-| `derivative_filter_time` | `0.015` | s | Constante de temps du filtre passe-bas de la dérivée. Positive ou nulle ; `0` désactive le filtrage. |
+| `kp` | `0.9` | V/(rad/s) | Proportional gain. Must be non-negative. |
+| `ki` | `3.5` | V/rad | Integral gain. Must be non-negative. |
+| `kd` | `0.012` | V·s²/rad | Derivative-on-measurement gain. Must be non-negative. |
+| `output_min` | `-24.0` | V | Minimum allowed command voltage. Must be less than `output_max`. |
+| `output_max` | `24.0` | V | Maximum allowed command voltage. Must be greater than `output_min`. |
+| `derivative_filter_time` | `0.015` | s | Derivative low-pass filter time constant. Must be non-negative; `0` disables filtering. |
 
-La dérivée est calculée sur la mesure, ce qui évite un pic dérivé lors d'un
-changement brusque de consigne. L'intégrateur applique un anti-windup
-conditionnel lorsque la sortie est saturée.
+The derivative term operates on the measurement, preventing a derivative kick
+when the setpoint changes abruptly. Conditional anti-windup stops the integral
+term from accumulating further into saturation.
 
-Pour régler les deux côtés séparément :
+To tune the two sides independently:
 
 ```cpp
-const motion::PidConfig left_pid{/* paramètres gauche */};
-const motion::PidConfig right_pid{/* paramètres droite */};
+const motion::PidConfig left_pid{/* left-side parameters */};
+const motion::PidConfig right_pid{/* right-side parameters */};
 motion::SimulatedDrivetrain drivetrain(
     motor_parameters, left_pid, right_pid);
 ```
 
-## Paramètres du suivi de waypoints
+## Waypoint follower parameters
 
-Le type `WaypointFollowerConfig` est déclaré dans
-`include/motion/waypoint_follower.hpp`. Sans configuration explicite,
-`WaypointFollower` utilise les valeurs suivantes.
+`WaypointFollowerConfig` is declared in
+`include/motion/waypoint_follower.hpp`. A default-constructed
+`WaypointFollower` uses the following values.
 
-| Champ | Défaut | Unité | Définition et contrainte |
+| Field | Default | Unit | Definition and requirement |
 |---|---:|---|---|
-| `position_gain` | `1.2` | s⁻¹ | Transforme la distance au waypoint en vitesse linéaire. Strictement positif. |
-| `heading_gain` | `3.0` | s⁻¹ | Corrige l'orientation vers le waypoint pendant la translation. Strictement positif. |
-| `final_heading_gain` | `2.0` | s⁻¹ | Corrige l'orientation finale demandée. Strictement positif. |
-| `max_linear_speed` | `0.8` | m/s | Limite de vitesse linéaire du châssis. Strictement positive. |
-| `max_angular_speed` | `2.0` | rad/s | Limite de vitesse angulaire du châssis. Strictement positive. |
-| `position_tolerance` | `0.03` | m | Distance maximale pour considérer la position atteinte. Strictement positive. |
-| `heading_tolerance` | `0.05` | rad | Erreur maximale pour considérer l'orientation atteinte. Strictement positive. |
+| `position_gain` | `1.2` | s⁻¹ | Converts distance to the waypoint into linear speed. Must be strictly positive. |
+| `heading_gain` | `3.0` | s⁻¹ | Corrects the heading toward the waypoint during translation. Must be strictly positive. |
+| `final_heading_gain` | `2.0` | s⁻¹ | Corrects the requested final heading. Must be strictly positive. |
+| `max_linear_speed` | `0.8` | m/s | Chassis linear-speed limit. Must be strictly positive. |
+| `max_angular_speed` | `2.0` | rad/s | Chassis angular-speed limit. Must be strictly positive. |
+| `position_tolerance` | `0.03` | m | Maximum distance for considering the target position reached. Must be strictly positive. |
+| `heading_tolerance` | `0.05` | rad | Maximum error for considering the target heading reached. Must be strictly positive. |
 
-Une tolérance plus faible augmente la précision demandée, mais peut empêcher le
-passage au waypoint suivant si le système oscille ou si la résolution des
-encodeurs est insuffisante.
+A smaller tolerance requests greater accuracy, but it may prevent advancement
+to the next waypoint if the system oscillates or the encoder resolution is too
+coarse.
 
-## Waypoints et pose initiale
+## Waypoints and initial pose
 
-Les waypoints sont définis dans `apps/motion_simulator.cpp` sous la forme :
+Waypoints are defined in `apps/motion_simulator.cpp`:
 
 ```cpp
 const std::vector<motion::Pose2d> waypoints{
@@ -167,25 +162,24 @@ const std::vector<motion::Pose2d> waypoints{
 };
 ```
 
-Chaque pose contient `{x, y, heading}` :
+Each pose contains `{x, y, heading}`:
 
-| Champ | Unité | Définition |
+| Field | Unit | Definition |
 |---|---|---|
-| `x` | m | Position selon l'axe horizontal global. |
-| `y` | m | Position selon l'axe vertical global. |
-| `heading` | rad | Orientation dans le plan. `0` pointe vers `+x`; les angles positifs tournent dans le sens trigonométrique. |
+| `x` | m | Position along the global horizontal axis. |
+| `y` | m | Position along the global vertical axis. |
+| `heading` | rad | Planar orientation. `0` points along `+x`; positive angles turn counterclockwise. |
 
-Conversions usuelles : `π/2 = 90°`, `π = 180°` et `-π/2 = -90°`.
+Common conversions are `π/2 = 90°`, `π = 180°`, and `-π/2 = -90°`.
 
-La pose réelle et la pose estimée commencent actuellement à `{0, 0, 0}` :
+The true and estimated poses currently start at `{0, 0, 0}`:
 
 ```cpp
 motion::Pose2d true_pose;
 motion::Pose2d estimated_pose;
 ```
 
-Pour utiliser une autre pose initiale, initialiser les deux poses et aligner
-l'odométrie :
+To use another initial pose, initialize both poses and align the odometry:
 
 ```cpp
 motion::Pose2d true_pose{0.5, 0.5, std::numbers::pi / 2.0};
@@ -193,32 +187,31 @@ motion::Pose2d estimated_pose = true_pose;
 odometry.reset(estimated_pose);
 ```
 
-La liste des waypoints ne doit pas être vide, car la simulation accède toujours
-à `waypoints[target_index]`.
+The waypoint list must not be empty because the simulation always accesses
+`waypoints[target_index]`.
 
-## Paramètres de sécurité
+## Safety parameters
 
-Le type `SafetyLimits` est déclaré dans
-`include/motion/safety_supervisor.hpp`. Le scénario de référence utilise
-`{0.20, 45.0, 90.0}`.
+`SafetyLimits` is declared in `include/motion/safety_supervisor.hpp`. The
+reference scenario uses `{0.20, 45.0, 90.0}`.
 
-| Champ | Défaut de la bibliothèque | Référence du simulateur | Unité | Définition et contrainte |
+| Field | Library default | Simulator reference | Unit | Definition and requirement |
 |---|---:|---:|---|---|
-| `command_timeout` | `0.25` | `0.20` | s | Âge maximal de la dernière commande. Strictement positif. |
-| `max_current` | `40.0` | `45.0` | A | Valeur absolue maximale du courant d'une roue. Strictement positive. |
-| `max_wheel_speed` | `80.0` | `90.0` | rad/s | Valeur absolue maximale de la vitesse d'une roue. Strictement positive. |
+| `command_timeout` | `0.25` | `0.20` | s | Maximum age of the latest command. Must be strictly positive. |
+| `max_current` | `40.0` | `45.0` | A | Maximum absolute current for either wheel. Must be strictly positive. |
+| `max_wheel_speed` | `80.0` | `90.0` | rad/s | Maximum absolute speed for either wheel. Must be strictly positive. |
 
-Un dépassement ou un retour non numérique déclenche un défaut mémorisé. Le
-drivetrain est alors désactivé et les deux PID sont réinitialisés. Un retour à
-l'état normal nécessite un appel explicite à `SafetySupervisor::reset()`.
+A limit violation or non-finite feedback value latches a fault. The drivetrain
+is then disabled and both PID controllers are reset. Returning to a healthy
+state requires an explicit call to `SafetySupervisor::reset()`.
 
-Le timeout doit rester nettement supérieur à `kDt` et prendre en compte les
-retards réels du transport lorsqu'un adaptateur matériel remplace la simulation.
+Keep the timeout comfortably above `kDt` and include real transport delays when
+a hardware adapter replaces the simulation.
 
-## Profil de mouvement trapézoïdal
+## Trapezoidal motion profile
 
-`TrapezoidalProfile`, déclaré dans
-`include/motion/trapezoidal_profile.hpp`, reçoit trois arguments :
+`TrapezoidalProfile`, declared in
+`include/motion/trapezoidal_profile.hpp`, takes three arguments:
 
 ```cpp
 motion::TrapezoidalProfile profile(
@@ -227,81 +220,77 @@ motion::TrapezoidalProfile profile(
     max_acceleration);
 ```
 
-| Argument | Unité | Définition et contrainte |
+| Argument | Unit | Definition and requirement |
 |---|---|---|
-| `distance` | m ou rad | Déplacement signé demandé. Une valeur négative inverse le mouvement. |
-| `max_velocity` | m/s ou rad/s | Vitesse maximale en valeur absolue. Strictement positive. |
-| `max_acceleration` | m/s² ou rad/s² | Accélération maximale en valeur absolue. Strictement positive. |
+| `distance` | m or rad | Signed requested displacement. A negative value reverses the motion direction. |
+| `max_velocity` | m/s or rad/s | Maximum absolute velocity. Must be strictly positive. |
+| `max_acceleration` | m/s² or rad/s² | Maximum absolute acceleration. Must be strictly positive. |
 
-Les unités dépendent de l'axe modélisé, mais elles doivent rester cohérentes
-entre les trois arguments. Une distance courte génère automatiquement un profil
-triangulaire ; une distance assez longue génère un profil trapézoïdal avec une
-phase à vitesse constante.
+Units depend on the modeled axis but must remain consistent across all three
+arguments. A short distance automatically produces a triangular profile. A
+longer distance produces a trapezoidal profile with a constant-speed phase.
 
-Ce profil est actuellement disponible dans la bibliothèque et couvert par les
-tests, mais il n'est pas connecté au scénario `motion_simulator`.
+The profile is available in the library and covered by tests, but it is not
+currently connected to the `motion_simulator` scenario.
 
-## Perturbation et injection de défaut
+## Disturbance and fault injection
 
-Le scénario applique une charge sur la roue droite entre 8 s et 10 s :
+The reference scenario applies a load to the right wheel from 8 s to 10 s:
 
 ```cpp
 const double right_load = time >= 8.0 && time < 10.0 ? 0.12 : 0.0;
 ```
 
-`right_load` est un couple résistant en N·m. Les arguments de
-`drivetrain.step()` sont, dans l'ordre, le temps, le pas, la charge gauche et la
-charge droite :
+`right_load` is a resisting torque in N·m. The arguments to
+`drivetrain.step()` are the timestamp, sample period, left load, and right load:
 
 ```cpp
 drivetrain.step(time, kDt, 0.0, right_load);
 ```
 
-L'option de ligne de commande `--inject-timeout` interrompt le rafraîchissement
-des commandes entre 18 s et 18,35 s. Ces bornes sont définies dans
-`apps/motion_simulator.cpp` et peuvent être modifiées pour construire un autre
-scénario de panne.
+The `--inject-timeout` command-line option stops refreshing commands from 18 s
+to 18.35 s. These bounds are defined in `apps/motion_simulator.cpp` and can be
+changed to construct another fault scenario.
 
-## Sortie et télémétrie
+## Output and telemetry
 
-Par défaut, le simulateur écrit `out/telemetry.csv`. Un autre chemin peut être
-passé comme premier argument :
+The simulator writes `out/telemetry.csv` by default. Pass another path as the
+first argument when a different destination is required:
 
 ```bash
-./build/motion_simulator out/mon_essai.csv
-./build/motion_simulator out/defaut.csv --inject-timeout
+./build/motion_simulator out/my_run.csv
+./build/motion_simulator out/fault.csv --inject-timeout
 ```
 
-La boucle écrit une ligne toutes les dix itérations. Avec `kDt = 0.002 s`, la
-fréquence d'export est donc de `50 Hz`. Modifier le diviseur `10U` dans la
-condition d'export permet de changer cette fréquence sans modifier la fréquence
-de commande.
+The loop writes one row every ten iterations. With `kDt = 0.002 s`, telemetry
+is therefore exported at `50 Hz`. Change the `10U` divisor in the export
+condition to adjust this rate without changing the control-loop frequency.
 
-## États et commandes d'exécution
+## Runtime states and commands
 
-Les types suivants représentent des données dynamiques, et non des paramètres
-fixes à renseigner une seule fois :
+The following types represent dynamic runtime data rather than fixed
+configuration values:
 
-- `MotorCommand` : numéro de séquence, consignes de vitesse gauche/droite et
-  autorisation des moteurs ;
-- `MotorFeedback` : horodatage, vitesses, courants, positions et tensions ;
-- `MotorState` : courant, vitesse angulaire et position angulaire internes ;
-- `Pose2d`, `Twist2d` et `WheelSpeeds` : pose, commande du châssis et vitesses
-  des roues.
+- `MotorCommand`: sequence number, left/right speed commands, and motor-enable
+  state;
+- `MotorFeedback`: timestamp, speeds, currents, positions, and voltages;
+- `MotorState`: internal current, angular velocity, and angular position;
+- `Pose2d`, `Twist2d`, and `WheelSpeeds`: robot pose, chassis command, and wheel
+  speeds.
 
-Dans un système réel, ces valeurs doivent être alimentées à chaque cycle par le
-contrôleur, les encodeurs et le pilote matériel. Les champs `sequence` et
-`timestamp` permettent de détecter des données anciennes ou perdues.
+In a physical system, the controller, encoders, and hardware driver must update
+these values each cycle. The `sequence` and `timestamp` fields support detection
+of stale or missing data.
 
-## Procédure recommandée après modification
+## Recommended procedure after changing parameters
 
-Après chaque changement de paramètres :
+After each parameter change:
 
-1. reconstruire le projet ;
-2. exécuter les tests ;
-3. lancer une simulation nominale ;
-4. vérifier la télémétrie, les saturations et les marges de sécurité ;
-5. exécuter le scénario avec timeout.
+1. rebuild the project;
+2. run the test suite;
+3. run a nominal simulation;
+4. inspect telemetry, saturation, and safety margins;
+5. run the timeout fault scenario.
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -312,7 +301,6 @@ ctest --test-dir build --output-on-failure
 python tools/plot_telemetry.py out/telemetry.csv --output docs/motion_control.png
 ```
 
-Les valeurs du scénario de référence décrivent un modèle logiciel déterministe.
-Elles ne doivent pas être utilisées sur un robot réel avant validation des
-unités, identification du moteur, réglage du PID et vérification indépendante
-des limites de sécurité.
+The reference values describe a deterministic software model. Do not apply
+them to physical hardware before validating units, identifying the motor,
+tuning the PID controllers, and independently verifying all safety limits.
